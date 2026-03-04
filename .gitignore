@@ -3,3 +3,5 @@ firebase-debug.log
 firebase-debug.*.log
 .DS_Store
 public/
+dist/
+node_modules/
