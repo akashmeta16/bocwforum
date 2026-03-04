@@ -264,13 +264,15 @@ function DiscussionPage() {
 
             <div className="col-md-1 mb-2">
               <button type="button" className="btn btn-sm btn-find w-100" onClick={handleSearch}>
-                Find
+                <i className="fa fa-search" aria-hidden="true" />
+                &nbsp;Find
               </button>
             </div>
 
             <div className="col-md-2 mb-2">
               <button type="button" className="btn btn-sm btn-reset" onClick={handleReset}>
-                Reset
+                <i className="fa fa-undo" aria-hidden="true" />
+                &nbsp;Reset
               </button>
             </div>
           </div>
@@ -404,7 +406,8 @@ function DiscussionPage() {
                         </div>
                         <div className="col-md-1 mb-2 d-flex align-items-end topic-add-wrap">
                           <button type="button" className="btn btn-sm btn-add-comment mt-2" onClick={handleAddComment}>
-                            Add
+                            <i className="fa fa-plus" aria-hidden="true" />
+                            &nbsp;Add
                           </button>
                         </div>
                       </div>

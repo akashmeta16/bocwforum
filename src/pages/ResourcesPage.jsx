@@ -94,13 +94,15 @@ function ResourcesPage() {
 
             <div className="col-md-1 mb-2">
               <button type="button" className="btn btn-sm btn-find w-100" onClick={handleSearch}>
-                Find
+                <i className="fa fa-search" aria-hidden="true" />
+                &nbsp;Find
               </button>
             </div>
 
             <div className="col-md-2 mb-2">
               <button type="button" className="btn btn-sm btn-reset" onClick={handleReset}>
-                Reset
+                <i className="fa fa-undo" aria-hidden="true" />
+                &nbsp;Reset
               </button>
             </div>
           </div>
@@ -130,7 +132,8 @@ function ResourcesPage() {
                     <tr key={row.id}>
                       <td className="text-center">
                         <button type="button" className="btn btn-sm view-btn" onClick={() => setSelectedResource(row)}>
-                          View
+                          <i className="fa fa-eye" aria-hidden="true" />
+                          <span className="visually-hidden">View</span>
                         </button>
                       </td>
                       <td>{row.docId}</td>

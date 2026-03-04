@@ -92,13 +92,15 @@ function OfficersPage() {
 
             <div className="col-md-1 mb-2">
               <button type="button" className="btn btn-sm btn-find w-100" onClick={handleSearch}>
-                Find
+                <i className="fa fa-search" aria-hidden="true" />
+                &nbsp;Find
               </button>
             </div>
 
             <div className="col-md-2 mb-2">
               <button type="button" className="btn btn-sm btn-reset" onClick={handleReset}>
-                Reset
+                <i className="fa fa-undo" aria-hidden="true" />
+                &nbsp;Reset
               </button>
             </div>
           </div>
