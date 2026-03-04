@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "discussion": {
+      ".read": true,
+      "topicDetails": {
+        "$topicId": {
+          "comments": {
+            "$commentId": {
+              ".write": "!data.exists() && newData.hasChildren(['name', 'text', 'date', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 80 && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 2000 && newData.child('date').isString() && newData.child('date').val().length > 0 && newData.child('createdAt').isNumber()"
+            }
+          }
+        }
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}

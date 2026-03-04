@@ -1,6 +1,16 @@
 (function () {
   const data = window.BOCW_DATA || {};
   if (!data.topicDetails) data.topicDetails = {};
+  const firebaseConfig = {
+    apiKey: "AIzaSyAGFYOXC6qjkCHoFuh8NfOqf9AdBv3Y9pA",
+    authDomain: "bocwforum-260304144119.firebaseapp.com",
+    databaseURL: "https://bocwforum-260304144119-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "bocwforum-260304144119",
+    storageBucket: "bocwforum-260304144119.firebasestorage.app",
+    messagingSenderId: "171305984465",
+    appId: "1:171305984465:web:14d66c8045803baaa180f0"
+  };
+  let discussionDatabase = null;
 
   function byId(id) {
     return document.getElementById(id);
@@ -85,6 +95,16 @@
     const idx = select.selectedIndex;
     if (idx < 0) return "";
     return (select.options[idx] && select.options[idx].textContent) || "";
+  }
+
+  function getDiscussionDatabase() {
+    if (discussionDatabase) return discussionDatabase;
+    if (!window.firebase || !window.firebase.initializeApp || !window.firebase.database) return null;
+    if (!window.firebase.apps || !window.firebase.apps.length) {
+      window.firebase.initializeApp(firebaseConfig);
+    }
+    discussionDatabase = window.firebase.database();
+    return discussionDatabase;
   }
 
   function renderOfficers(rows) {
@@ -272,6 +292,94 @@
       .join("");
   }
 
+  function ensureTopicComments(topicId) {
+    const key = String(topicId);
+    if (!data.topicDetails[key]) {
+      data.topicDetails[key] = { comments: [] };
+    }
+    if (!Array.isArray(data.topicDetails[key].comments)) {
+      data.topicDetails[key].comments = [];
+    }
+    return data.topicDetails[key].comments;
+  }
+
+  function normalizeCommentRecord(record) {
+    if (!record || typeof record !== "object") return null;
+
+    const name = String(record.name || "").trim();
+    const text = String(record.text || "").trim();
+    if (!name || !text) return null;
+
+    let createdAt = Number(record.createdAt);
+    if (!Number.isFinite(createdAt)) {
+      const parsed = Date.parse(record.date);
+      createdAt = Number.isFinite(parsed) ? parsed : Date.now();
+    }
+
+    return {
+      name: name,
+      text: text,
+      date: String(record.date || formatDate(new Date(createdAt))),
+      createdAt: createdAt
+    };
+  }
+
+  function syncTopicSummary(topicId) {
+    const comments = ensureTopicComments(topicId);
+    const topic = (data.topics || []).find(function (row) {
+      return Number(row.id) === Number(topicId);
+    });
+    if (!topic) return;
+
+    topic.noOfComments = String(comments.length);
+    topic.lastCommentDate = comments.length ? String(comments[comments.length - 1].date || "") : "";
+  }
+
+  function syncAllTopicSummaries() {
+    (data.topics || []).forEach(function (row) {
+      syncTopicSummary(row.id);
+    });
+  }
+
+  function loadDiscussionFromFirebase() {
+    const db = getDiscussionDatabase();
+    if (!db) return Promise.resolve(false);
+
+    return db
+      .ref("discussion/topicDetails")
+      .once("value")
+      .then(function (snapshot) {
+        const remoteTopicDetails = snapshot.val() || {};
+        Object.keys(remoteTopicDetails).forEach(function (topicId) {
+          const remoteTopic = remoteTopicDetails[topicId] || {};
+          const remoteComments = remoteTopic.comments || {};
+          const commentList = Object.keys(remoteComments)
+            .map(function (commentId) {
+              return normalizeCommentRecord(remoteComments[commentId]);
+            })
+            .filter(Boolean)
+            .sort(function (a, b) {
+              return a.createdAt - b.createdAt;
+            });
+
+          data.topicDetails[String(topicId)] = { comments: commentList };
+        });
+        syncAllTopicSummaries();
+        return true;
+      })
+      .catch(function (error) {
+        console.error("Unable to load discussion data from Firebase.", error);
+        return false;
+      });
+  }
+
+  function saveCommentToFirebase(topicId, comment) {
+    const db = getDiscussionDatabase();
+    if (!db) return Promise.reject(new Error("Firebase database SDK not loaded."));
+
+    return db.ref("discussion/topicDetails/" + String(topicId) + "/comments").push(comment);
+  }
+
   function renderTopicComments(topicId) {
     const tbody = byId("topicCommentsBody");
     if (!tbody) return;
@@ -347,8 +455,18 @@
     initSumoSelect("#ddlstate", "State");
     initSumoSelect("#ddlCategory", "Category");
 
+    syncAllTopicSummaries();
     let filteredRows = (data.topics || []).slice();
     renderDiscussionRows(filteredRows);
+
+    loadDiscussionFromFirebase().then(function (loaded) {
+      if (!loaded) return;
+      renderDiscussionRows(filteredRows);
+      const currentTopicId = Number(byId("hidtopicid").value);
+      if (currentTopicId > 0) {
+        renderTopicComments(currentTopicId);
+      }
+    });
 
     byId("btnsearch").addEventListener("click", function () {
       const stateId = byId("ddlstate").value;
@@ -401,31 +519,30 @@
       const newComment = {
         name: addedBy,
         date: formatDate(now),
-        text: commentsText
+        text: commentsText,
+        createdAt: now.getTime()
       };
 
-      if (!data.topicDetails[String(topicId)]) {
-        data.topicDetails[String(topicId)] = { comments: [] };
-      }
-      if (!Array.isArray(data.topicDetails[String(topicId)].comments)) {
-        data.topicDetails[String(topicId)].comments = [];
-      }
-
-      data.topicDetails[String(topicId)].comments.push(newComment);
-
-      const topic = (data.topics || []).find(function (row) {
-        return Number(row.id) === topicId;
-      });
-
-      if (topic) {
-        topic.noOfComments = String(data.topicDetails[String(topicId)].comments.length);
-        topic.lastCommentDate = newComment.date;
-      }
+      ensureTopicComments(topicId).push(newComment);
+      syncTopicSummary(topicId);
 
       renderTopicComments(topicId);
       renderDiscussionRows(filteredRows);
       byId("txtaddedby").value = "";
       byId("txtcomments").value = "";
+
+      saveCommentToFirebase(topicId, newComment).catch(function (error) {
+        const topicComments = ensureTopicComments(topicId);
+        const removeIndex = topicComments.indexOf(newComment);
+        if (removeIndex > -1) {
+          topicComments.splice(removeIndex, 1);
+        }
+        syncTopicSummary(topicId);
+        renderTopicComments(topicId);
+        renderDiscussionRows(filteredRows);
+        console.error("Unable to save discussion comment to Firebase.", error);
+        showWarning("Unable to save comment right now. Please try again.");
+      });
     });
   }
 
