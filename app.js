@@ -11,6 +11,43 @@
     appId: "1:171305984465:web:14d66c8045803baaa180f0"
   };
   let discussionDatabase = null;
+  const pageDataSources = {
+    officers: "assets/data/officers.json",
+    resources: "assets/data/resources.json",
+    discussion: "assets/data/discussion.json",
+    gallery: "assets/data/gallery.json"
+  };
+
+  function currentPage() {
+    return document.body.getAttribute("data-page") || "";
+  }
+
+  function mergePageData(payload) {
+    if (!payload || typeof payload !== "object") return;
+    Object.keys(payload).forEach(function (key) {
+      data[key] = payload[key];
+    });
+    if (!data.topicDetails) data.topicDetails = {};
+  }
+
+  function loadDataForPage(page) {
+    const source = pageDataSources[page];
+    if (!source) return Promise.resolve();
+
+    return fetch(source, { cache: "force-cache" })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("Failed to load page data: " + response.status);
+        }
+        return response.json();
+      })
+      .then(function (payload) {
+        mergePageData(payload);
+      })
+      .catch(function (error) {
+        console.error("Unable to load page data file.", error);
+      });
+  }
 
   function byId(id) {
     return document.getElementById(id);
@@ -547,7 +584,7 @@
   }
 
   function initGalleryPage() {
-    if (document.body.getAttribute("data-page") !== "gallery") return;
+    if (currentPage() !== "gallery") return;
 
     const slidesWrap = byId("gallerySlides");
     const thumbsWrap = byId("galleryThumbs");
@@ -567,7 +604,9 @@
           escapeHtml(image.src) +
           '" alt="' +
           escapeHtml(image.alt || "Gallery image") +
-          '"></center>' +
+          '" loading="' +
+          (index === 0 ? "eager" : "lazy") +
+          '" decoding="async"></center>' +
           "</div>"
         );
       })
@@ -583,7 +622,7 @@
           escapeHtml(image.alt || "Image") +
           '" data-slide-index="' +
           (index + 1) +
-          '">' +
+          '" loading="lazy" decoding="async">' +
           "</div>"
         );
       })
@@ -634,10 +673,12 @@
   function init() {
     hideSpinner();
     setActiveNav();
-    initOfficersPage();
-    initResourcesPage();
-    initDiscussionPage();
-    initGalleryPage();
+    loadDataForPage(currentPage()).finally(function () {
+      initOfficersPage();
+      initResourcesPage();
+      initDiscussionPage();
+      initGalleryPage();
+    });
   }
 
   if (document.readyState === "loading") {
